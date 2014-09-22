@@ -1,0 +1,303 @@
+8 数据库，第2部分 
+是的，我们又要讨论数据库了。你会很高兴地听到，我们不会纠缠于任何理论。 
+在接下来的文章中，我们将：
+
+•创建一个按钮，点击后，​​增加所选球员的得分。 •根据球员的排名决定他们的得分（从最高到最低）。 
+•显示所选择的球员的名字放在列表下方。 
+
+这听起来这一章需要大量代码，但是你会看到，它不需要很多代码。 
+
+
+8.1 另外一个event 
+
+创建“增加5分”按钮，将下面的代码中的“leaderboard”的template： 
+
+<input type="button" id="increment" value="Give 5 Points" />
+
+确保这个按钮： 
+
+•在each模块外面。 
+•具有一个我们可以引用ID。 
+
+我还是把按钮的代码加上li标签，这样我就可以在列表的下面很好地对齐。
+
+接下来，我们需要将该按钮加一个event，这样切换回JavaScript文件和看看event模块： 
+
+Template.leaderboard.events({ 
+    'click li.player': function(){
+       var playerId = this._id; 
+       Session.set('selectedPlayer', playerId);
+       var selectedPlayer = Session.get('selectedPlayer'); 
+       console.log(selectedPlayer);
+    } 
+});
+
+因为我们要创建的event也将被附加到“leaderboard”的template，我们不必创建新的event模块。我们可以通过用逗号分隔放置模块中的两个event： 
+
+Template.leaderboard.events({ 
+    'click li.player': function(){
+       var playerId = this._id; 
+       Session.set('selectedPlayer', playerId);
+       var selectedPlayer = Session.get('selectedPlayer'); 
+       console.log(selectedPlayer);
+    },
+    'click #increment': function(){
+        // code goes here
+    } 
+});
+
+不要忘了逗号。这是你可能犯最简单的错误之一，这只会造成不必要的时间浪费。
+
+在我们已经创建了点击#increment 的event，我们需要访问的用户点击过的球员的ID，我们会用这个ID：
+
+1 找到的球员所在的collection。 
+2 球员的field里的score增加5分
+3 将结果保存到数据库。
+
+该ID将仍然被保存在session中，以便让我们创建一个变量，并使用Session.get访问event的这个session：
+
+var selectedPlayer = Session.get('selectedPlayer');
+
+在这一点上，我们的event应类似于： 
+
+'click #increment': function(){
+    var selectedPlayer = Session.get('selectedPlayer');
+}
+
+因此，当用户点击了#increment按钮，所选择的球员的ID将被从session找出并存储在selectedPlayer变量中。我们将在接下来的步骤中引用这个变量。 
+
+
+8.2 高级操作员
+
+event里面点击#increment，添加下面一行我们之前写过的声明下：
+
+PlayersList.update（）;
+
+这是我们用来更新单个球员得分的函数 - 特别是collection中球员的document。它的作用形式可能和你首先想到的不完全一样。
+
+当我第一次知道MongoDB的时候，我想，如果我想改变一个field的值，然后我会这样写：
+
+PlayersList.update（ 
+    {_id：selectedPlayer}，
+    {score：5} 
+）; 
+
+如果没有检查MongoDB的document，我的理论是：
+
+•球员的document会基于传给_id的ID值得到数据。 •第二个大括号之间指定的任何field将被更新。 
+
+不过，虽然这个理论看起来是正确的，但有一个缺陷是，在第二组花括号之间没有指定任何field被删除。
+
+因此，上面的代码会将score的field设置为“5”，但它也从该document中删除的name的field。该文件将保持相同的主键，就是那个唯一的ID - 但是如果你不小心，update函数可以轻松地删除你不想删除的field。这是因为，在目前的形式，更新功能：
+
+1，删除文件的原始版本。 
+2，重新创建具有指定field的document。 
+
+如果你需要进一步明确所发生的事情，在前一个click#increment的event中添加代码，像这样：
+
+'click #increment': function(){
+     var selectedPlayer = Session.get('selectedPlayer'); 
+     PlayersList.update(
+        {_id: selectedPlayer},
+        {score: 5} );
+}
+
+然后亲自做测试。选择球员列表中的一个，点击“给5分”按钮，并注意球员的名字，你选择的那个将会消失。然后使用在JavaScript控制台中的查找功能，看看该球员document的结构发生了变化： 
+
+PlayersList.find().fetch();
+
+这不是name的field的值被删除。这是整个namefield
+从document中删除。
+
+要理解update函数是如何作用的，我原先预计它的工作方式- 更新score里field的值，而不触及document的其余部分 - 我们要编写以下代码： 
+
+PlayersList.update(
+    {_id: selectedPlayer},
+    {$set: {score: 5}}
+);
+
+在这里，我们使用了$set的operator。这使我们能够改变一个特定field的值不影响document的其余部分。还有一些大括号，所以让我们来分析一下。
+
+首先，我们希望在该field设置的值：
+
+score：5 
+
+第二，将它放在大括号中： 
+
+{score：5} 
+
+（这是前面我们提到过的。） 
+
+第三，我们将$set operator放在大括号前面：
+
+$set: {score: 5}
+
+MongoDB有一系列这样特殊的operator，它们名字前面有$符号作为标记。稍后我们再谈一下另一个operator。 
+第四，我们总结此行的另外一对花括号：
+
+{$set: {score: 5}}
+
+有了这个代码后，该event应该类似于： 
+
+'click #increment': function(){
+     var selectedPlayer = Session.get('selectedPlayer'); 
+     PlayersList.update(
+        {_id: selectedPlayer},
+        {$set: {score: 5}}
+    );
+}
+
+这样你就可以从列表中选择一个球员，点击“给5分”按钮，然后选中球员的得分将变更为“5”，而不删除name 中的值，或以其他方式影响document。
+ 
+但尽管如此，在$set operator只设置score field的值为“5”。我们可以点击“给5分”按钮上千次，但在其目前的形式，球员的得分在第一次将变为“5”，然后一直停留在一个静态值。我们几个原因，但：
+
+•不久以后你就会理解$set operator，所以尽快理解它会有很大帮助。 
+•有一个类似的operator，也可以用来增加数字。
+
+类似的操作符是$inc operator，它的格式和$set相同：
+
+{$inc: {score: 5}}
+
+但是这个操作符，将：
+
+1，找到score field的当前值。 
+2，加指定数目到当前值之上。 3，保存新值的document。
+
+在结束时，该event的代码应类似于：
+
+'click #increment': function(){
+var selectedPlayer = Session.get('selectedPlayer'); PlayersList.update(
+        {_id: selectedPlayer},
+        {$inc: {score: 5}}
+    );
+}
+
+要看到这个新功能：
+
+1，切换回谷歌Chrome浏览器。 
+2，选择的球员列表中的一个球员。 3，点击“给5分”按钮。 
+
+所选球员的得分将实时增加，当表单提交时候列表会自动更新.
+
+8.3 document排序
+
+其中我们的应用程序最明显的问题，是指球员中的列表是通过它们被插入到collection的时间排列的，而不是通过自己的得分。但这是很容易解决。
+
+在JavaScript文件，看看“player”helper：
+
+Template.leaderboard.player=function（）{
+    return PlayersList.find（）; 
+} 
+
+然后更改return语句如下： 
+
+return PlayersList.find（{}）; 
+
+在这里，我们传递空的大括号给find函数明确指出，我们要检索的所有document - 从“PlayersList”collection中所有球员。 
+
+所以，我们之前代码：
+
+return PlayersList.find（）; 
+
+......在技术上是一样的，我们现在代码：
+
+return PlayersList.find（{}）; 
+
+所不同的是，通过使用这些花括号，我们可以通过find 函数来传递第二个参数，而第二个参数是其中可以开始设置应用到find函数的选项。我们需要第一个参数 - 即使是空的 - 然后再定义第二个。 
+
+对于第二个参数，我们将使用 sort 
+operator：
+
+{sort: {score: -1}}
+
+这回没有$符号，但是这是和之前提到的$set和$inc是类似的结构。
+
+首先，我们先从我们要选择作用的field。在这种情况下，我们要根据score field 进行排序，所以我们代码： 
+
+{score：-1} 
+
+然后，我们在将operator放到前面，并把它们都放到大括号中： 
+
+{sort: {score: -1}}
+
+至于-1值，这使我们能够用降序排列名单 - 这意味着从最高数字到最低数字。如果score field包含文本，它会从Z到A排序。要以升序排列的得分field进行排序 - 从低到高 - 我们可以将该值设置为1，而不是-1。
+
+所以，return语句应该类似于：
+
+return PlayersList.find({}, {sort: {score: -1}});
+
+......而球员在名单应以自己的分数排名，得分最高的球员在顶部。 
+
+但如果两个球员有同样的成绩会发生什么？目前，我们的代码没有考虑这一点。理想的情况下，两位选手同分将按他们的名字顺序排列。所以，如果鲍勃和比尔同分，比尔会在鲍勃排名之上（之前）。
+
+为了实现这一目标，我们进行以下更改排序操作：
+
+{sort: {score: -1, name: 1}}
+
+这里，我们通过score field 降序，为第一条件，然后通过name field升序为第二条件。 
+
+最后的return语句应该类似于： 
+
+return PlayersList.find({}, {sort: {score: -1, name: 1}});
+
+由于Meteor的实时功能，当提交表单时，列表会自动更新。他们的分数改变则球员的排名将自动更新。 
+
+8.4 检索数据 
+
+在原leaderboard的应用程序，有一个功能，列表下方输出选择的球员名字。我认为这个功能不是非常有用，但是： 
+
+1，它使我们能够弥补一些有用的点。 
+2，这是原来的应用程序leaderboard的最后一个特征，所以我们不妨在学新的东西之前先把它做完。 
+
+首先，创建JavaScript文件中下面的helper函数：
+
+Template.leaderboard.showSelectedPlayer = function(){ 
+   // code goes here
+}
+
+与往常一样，请确保它在isClient条件语句内部。我们正在使用的语法也应该很熟悉。我们正在寻找带有template关键字的template，采用leaderboard的关键字来指定这个helper函数是服务于“leaderboard”的template，然后把helper函数命名为“showSelectedPlayer”。 
+
+在这个helper中，我们将检索选定的球员的ID。我们已经这样做了好几次，而且由于所选择的球员的ID将在session里，不会存在其他位置： 
+
+var selectedPlayer= Session.get（'selectedPlayer'）; 
+
+接下来，我们将使用从“PlayersList”的collection中中检索所选择的球员document的ID。要做到这一点，我们将使用findOne函数，这点我们还没有讨论： 
+
+return PlayersList.findOne(selectedPlayer); 
+
+findOne函数的好处是，它仅会检索一个collection的单个document，所以如果你只需要从collection中检索单一的document，这将是最有效的方法。 
+
+至于我们如何使用findOne函数，我们通过选定的球员作为唯一的参数的标识，并且作为结果，该球员的document值被返回给我们。 
+
+我们helper的代码应该类似于： 
+
+Template.leaderboard.showSelectedPlayer = function(){ 
+   var selectedPlayer = Session.get('selectedPlayer'); 
+   return PlayersList.findOne(selectedPlayer);
+}
+
+现在，我们可以把“leaderboard”template的helper放在两对大括号中并引用它： 
+
+{{showSelectedPlayer}} 
+
+但正如您所见，输出的不是很正确，这是因为findOne函数只会返回在collection中整个document，但我们是想特别显示出name field。 
+ 
+若要只显示name field，我们可以用这个dot语法：
+
+{{showSelectedPlayer.name}} 
+
+我们还可以获取所选择的球员的score field：
+
+{{showSelectedPlayer.score}} 
+
+甚至_id field： 
+
+{{showSelectedPlayer._id}} 
+
+最后一个细节值得加入是有条件的，如果一个球员被选择只会尽量显示所选球员的数据。Spacebars支持条件语句，所以下面的代码会实现： 
+ 
+{{#if showSelectedPlayer}}
+    Selected Player: {{showSelectedPlayer.name}}
+{{/if}}
+
+如果球员没有被选中，在“showSelectedPlayer”helper函数将返回null，我们的template将不尝试获取不存在的数据。
