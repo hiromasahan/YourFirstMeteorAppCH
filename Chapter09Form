@@ -1,0 +1,281 @@
+9 表格 
+
+如果用户感觉leaderboard的应用程序迷迷糊糊的，那也没有什么办法。他们可以增加得分，但仅限于我们定义的球员名单，这是不是特别实用。 
+
+在接下来的章节，我们会教用户从列表中添加和删除的球员。也许那将会更有用。
+
+9.1创建Form
+
+切换到HTML文件，并创建通过将下面的代码放到之前的template下面建立一个新的template：
+
+<template name="addPlayerForm"> 
+</template>
+
+我们没有必要创建一个新的template，但应用程序变得越大，如果它分成更小的块就越容易管理。在这种情况下，我命名template“addPlayerForm”，但你可以把它叫做任何你想要的名字。 
+
+在这个template中，创建如下形式：
+
+<form>
+    <input type="text" id="playerName"> 
+    <input type="submit" value="Add Player">
+</form>
+
+对于这个form没有什么特别的指出的。唯一值得一提的一点是，我们已经指定了“playerName”标识的文本字段，我们将在下一步引用该ID。 
+
+在这个template里，我们使用Spacebars语法： 
+
+{{> addPlayerForm}} 
+
+我已经把这个标签放到闭合body标签之前，但如果你想，你可以把它放在“leaderboard”template中。 
+
+
+9.2 “提交”event 
+
+此前，我们谈到不同的event类型单击和双击等。另一个有用的event类型为submit event。当表单被提交时，这种类型触发代码的执行。当表单被提交时，我们将使用submit event将数据插入到“PlayersList”collection。 
+
+首先，在JavaScript文件中创建第二个event模块： 
+
+Template.addPlayerForm.events({
+    // events go here
+});
+
+注意我们需要创建新的event模块，因为每个模块必须与特定的template关联。因此一个新的template，意味着一个新的event模块。我们还需要确保这些代码仍然是在isClient条件语句内。
+
+要创建一个新的event，我们就在这个模块中用一个熟悉的语法： 
+'submit form': function(){ 
+    // code goes here
+}
+
+在这里，我们使用了submit关键字作为event类型。这与click event按钮不同，因为一个表单提交也可以通过敲击键盘上的回车键出现。使用submit关键字可以实现几乎各种形式的提交功能。
+
+form关键字是我们先前创建的form元素的参考。如果我们在一个template里有多种form，我们可以让每个ID和每个表单关联，并使用以下语法创建event：
+
+'submit form#idGoesHere': function(){ 
+    // code goes here
+}
+
+但是，由于在template中只有一种form，我们并不需要如此具体去指出。为了确保我们的event可以工作，在里面写console.log语句： 
+
+'submit form': function(){ 
+    console.log("Form submitted");
+}
+
+有了这个代码后，点击“添加球员”按钮 - 或用返回键提交表单 - 都会出现“表格已提交”的消息出现在JavaScript控制台。 
+
+然而，有一点是提交表单也会使得页面刷新。这是因为，通常情况下，form的工作形式是这样的： 
+
+1，用户填写一些form 的field。 
+2，用户提交form。 
+3，数据发送到某处。
+
+但是，建立一个Meteor应用程序时，这个过程有一点不同： 
+1，用户填写一些表格。 
+2，用户提交表单。 
+3，从form field中提取出数据。
+
+所以不提交于传统意义上的形式，因为数据不被发送到任何地方，只是立即提取。 
+
+这个问题是Web浏览器预计该数据将送到某个地方，当它没有的时候，浏览器无法弄清楚怎么回事 - 因此，该页面只是刷新。
+
+要解决这个问题，我们需要禁用form的默认行为，所以我们可以完全控制它的工作原理。 
+
+首先，让我们来看看event： 
+
+'submit form': function(){ 
+    console.log('Form submitted');
+} 
+
+然后，进行更改：
+
+'submit form': function(theEvent){ 
+    console.log('Form submitted');
+}
+
+在这里，我们已经添加了theEvent关键字作为我们event的函数中的第一个参数。这个关键字的位置说明，我们现在可以用它从event本身内指向event。 
+
+听起来有点奇怪？
+
+考虑下面的代码： 
+
+'submit form': function(theEvent){ 
+    console.log(theEvent.type);
+}
+
+在这里，我们能使用theEvent关键字从event中引用event，并显示我们在JavaScript控制台event的类型参数。在这种情况下，“提交”将出现在JavaScript控制台，因为event是submit的类型。 （但网页仍然刷新，因此字符串只会短暂出现。） 
+
+我们会用不同的目的调用event。
+
+更改提交表单event如下： 
+
+'submit form': function(theEvent){ 
+    theEvent.preventDefault();
+    console.log('Form submitted');
+}
+
+在这里，我们从使用theEvent关键字，从event本身中引用的event，然后使用这个的preventDefault函数，以防止form的默认行为。这样一来，这个form就不会有内在行为，我们就可以从头开始操纵它。 
+
+在这个阶段中，当表单提交，console.log 语句将被触发，此时页面不会刷新。
+
+
+9.3抓取数据 
+在“PlayersList”collection插入数据。我们在JavaScript控制台使用之前用过的submit form event的语法：
+
+PlayersList.insert({
+    name: 'David',
+    score: 0 
+});
+
+但是，这种精确的语句将插入“David”的hard－coded值的name field中，当我们要发生某项事件，则让我们的代码： 
+
+1 从我们的文本field中抓取值。 
+2 把抓取的值用在name field中。
+
+将比分设置为“0”的硬编码值是很好的，因为每个球员都应该一视同仁地启动，需要在name field应当根据用户输入的值来动态地设置。 
+
+要做到这一点，我们通过event函数把第二个参数传递出去：
+
+'submit form': function(theEvent, theTemplate){ 
+   theEvent.preventDefault(); 
+   console.log('Form submitted');
+}
+
+这里，我们已经添加了theTemplate关键字的函数，该template关键字是指我们的event被连接到那个template。我们的event连接到“addPlayerForm”template，所以我们可以使用theTemplate关键字： 
+
+1，搜索“addPlayerForm”template。 
+2，检索有“playerName”的ID值的文本字段。 3，创建一个使用这个值的name字段的document。
+
+考虑下面的代码： 
+
+theTemplate.find（'＃playerName'）; 
+
+在这里，我们通过使用theTemplate关键字引用了“addPlayerForm”，然后使用find函数在template中搜索。通过这个find函数的值是一个CSS选择器。此前，在form的文本区域添加了“playerName”ID，所以现在我们可以使用#playerName语法来引用该ID。 
+
+我们已经写的基本声明是，“通过我们event的template搜索这个特殊的元素。”
+
+为了方便起见，在此语句添加变量： 
+
+var playerNameVar = theTemplate.find('#playerName');
+
+然后在console.log语句中引用这个变量：
+
+console.log（playerNameVar）; 
+
+在这一点上，该代码应类似于：
+
+'submit form': function(theEvent, theTemplate){ 
+   theEvent.preventDefault();
+   var playerNameVar = theTemplate.find('#playerName'); 
+   console.log(playerNameVar);
+}
+
+但是有一个问题。我们使用这个find 函数只检索HTML元素本身 - 这意味着，该文本字段。但我们不只是要在文本字段。我们要在文本字段内的值。 
+
+要访问文本字段内的值，使用Value属性：
+
+var playerNameVar = theTemplate.find('#playerName').value;
+
+现在，提交表单时无论用户输入文本字段什么都会出现在JavaScript控制台。 
+
+为了让表单功能正常，添加插入功能到event的底部，像这样： 
+
+'submit form': function(theEvent, theTemplate){ 
+   theEvent.preventDefault();
+   var playerNameVar = theTemplate.find('#playerName').value; 
+   PlayersList.insert({
+        name: playerNameVar,
+        score:0 
+    });
+}
+
+
+保存文件后，在文本字段键入一个名称，并提交表单。提交后会在“PlayersList”collection里创建一个document，用提交的值作为document里name field的值。 
+
+
+9.4 删除球员
+
+为了达到另一个目标 - 删除球员 - 让我们在界面添加一个按钮，允许用户从“PlayersList”collection中删除选定的球员界面。 
+
+在“leaderboard”的template的某个地方，创建一个新的按钮： 
+
+<input type="button" id="remove" value="Remove Player" />
+
+我把这个按钮放在“给5分”按钮的旁边，但确切位置并不重要。 
+
+在JavaScript文件，在“leaderboard”的template附加一个event： 
+
+'click #remove': function(){ 
+   // code goes here
+}
+
+（不要忘了在此模块用逗号分隔event。）
+
+此event响应该click event，并连接到与“删除”标识的元素（这就是我们刚创建的​​那个按钮）。 
+
+在这个情况下，我们需要：
+
+1，检索当前选定的球员的ID。 
+2，从collection中基于ID删除该球员。 
+
+第一个步骤我们已经做过好几次了，我们将再利用session按照相同的步骤做一遍。 
+
+在event中写下面的语句： 
+
+var selectedPlayer = Session.get('selectedPlayer');
+
+然后，这条代码下，我们将使用remove函数：
+
+PlayersList.remove（selectedPlayer）; 
+
+我们之前没有讨论过这个函数，不过也没有太多值得一提的。我们把这个ID通过这个函数作为唯一的参数，并且，如果该ID是在collection中找到时，相关的document也将被删除。
+
+此event的最终代码应该类似于： 
+
+'click #remove': function(){
+    var selectedPlayer = Session.get('selectedPlayer'); 
+    PlayersList.remove(selectedPlayer);
+}
+
+在Web浏览器，用户现在可以选择一个球员，然后单击“删除球员”按钮，从collection中删除该球员的document。 
+￼ 
+
+9.5 减少分数 
+
+想象一下，一个用户不小心加错了球员的得分怎么办？凭借我们目前应用的形式，除了删除球员没有什么可以做，然后把球员加回到collection，然后单击“给5分”，直到他们的积分达到相应的水平。但是这还不是最简便的方式。
+
+考虑到人为错误，我们会放置一个在“给5分”按钮的旁边“减5分”按钮。通过这种方式，用户可以递增和递减的分数。 
+
+首先，让我们来看看在HTML文件中的“给5分”按钮：
+
+<input type="button" id="increment" value="Give 5 Points" />
+
+......并把“拿5分”按钮放在它旁边： 
+
+<input type="button" id="increment" value="Give 5 Points" /> 
+<input type="button" id="decrement" value="Take 5 Points" />
+
+我已经将按钮的ID从“增量”变成“减量”，因为我们需要一个独立的event附加到这个按钮。 
+
+接下来，切换回JavaScript文件和里面的event模块，它连接到“leaderboard”的template。插入以下代码：
+
+'click #decrement': function(){
+    var selectedPlayer = Session.get('selectedPlayer'); PlayersList.update(
+        {_id: selectedPlayer},
+        {$inc: {score: -5}}
+    );
+}
+
+（和往常一样，别忘了逗号分隔event。） 
+
+通常情况下，我不喜欢在你的面前粘贴代码，但是这个代码几乎是相同的 。
+
+根据我们之前创建的click#increment的event。我们所做的只是两个变化：
+
+1 定义event，现在是click＃decrement而不是click＃increment。 
+2，$inc operator的值是现在是-5而非5。效果
+和之前相反。
+
+否则，代码会和之前的工作方式相同：
+
+当用户点击我们指定的元件上的功能被触发 - 在这种情况下，有“递减”ID的元素 - ID及选定的球员都会从“selectedPlayer”session中拉出来。该ID用于update函数内找到所选择的球员的document，而$inc operator用于修改得分字段的值。 
+
+保存文件后，新的“减5分”按钮将允许用户减掉球员的分数 － 无论他们选择那个球员。

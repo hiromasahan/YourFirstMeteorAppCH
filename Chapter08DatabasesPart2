@@ -67,7 +67,7 @@ var selectedPlayer = Session.get('selectedPlayer');
 因此，当用户点击了#increment按钮，所选择的球员的ID将被从session找出并存储在selectedPlayer变量中。我们将在接下来的步骤中引用这个变量。 
 
 
-8.2 高级操作员
+8.2 Operator
 
 event里面点击#increment，添加下面一行我们之前写过的声明下：
 
