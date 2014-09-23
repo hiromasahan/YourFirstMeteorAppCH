@@ -1,0 +1,253 @@
+10 账户 
+
+如果我们把leaderboard的应用程序在当前状态下发布到Web，还会有很多问题，但也许是最明显的问题是，它不支持多用户。 
+
+此时，我们只有一个leaderboard和球员列表。如果一个用户将球员列表和另一个用户增加球员的列表中，所有的这些球员将是相同的列表，这是不实用的。所有的用户都可以自由地从列表中删除球员和修改分数的话，不会需要很长时间就会引发大量混乱。用户永远不会相信，他们在控制leaderboard。
+
+为了解决这个问题，我们将创建一个用户帐户系统，但同时，这听起来似乎很长，无聊的，可能令人困惑的过程，与Meteor工作时就是这样的事。创建用户帐户的系统实际上是我们可以做的最简单的事情之一。 
+
+在本章中，我们将使它如此： 
+
+•用户可以注册并登录到应用程序。 
+•登出用户将无法看到“添加球员”的形式。 •每个用户都会有自己的，独一无二的leaderboard。 
+
+它不会占用大量的代码。 
+
+10.1 login Provider
+
+安装Meteor时候已经安装了一系列的package，包括“login provider”package。这些是由Meteor的开发人员创建的插件，这让我们很容易的添加帐户系统的后端到我们的应用程序中。
+
+这个后端包括： 
+
+•一个collection来存储用户的数据。 
+•我们将尽快学习其他有用的函数。 
+
+要添加这些package到我们的project中，在command line输入以下命令： 
+meteor add accounts-password
+
+（如果本地服务器在运行，你需要打开一个新的command line窗口或选项卡，输入此命令。） 
+
+该accounts-password package 创建后端的帐户系统，默认情况下，使用电子邮件和注册和登录密码。如果他们想要有，要有可用的选项允许用户选择一个用户名。但我宁愿让该选项禁用。其他登录提供包可允许用户通过服务，如Twitter和Facebook登录，我们将在后面的章节简单讨论。 
+
+10.2 Meteor.users
+
+添加账户密码package到project后，Meteor创我们的project创建数据库的collection，将用来存储用户的数据。这个collection被引用为Meteor.users，尽管它名字中间有个句点，可能看起来有点不同，它和在我们的project中的任何其他collection功能一样。
+
+为了证明这一点，请输入以下代码到JavaScript控制台： 
+
+Meteor.users 
+
+如果一切都按预期工作，在JavaScript控制台应该会回应一些数据，证实，是的，这是没有什么，这和我们创建自己的任何collection没有任何不同。 
+
+考虑到这一点，我们可以对这个collection使用熟悉的函数，如fetch函数： 
+
+Meteor.users.find（）.fetch（）;
+
+或count函数：
+
+Meteor.users.find().count();
+
+但因为没有人注册应用程序，我们的collection是空的，所以第一个语句返回一个空数组，第二条语句将返回0。因此，我们允许用户注册。 
+
+10.3登录界面 
+
+accounts-password package 加到我们后端的帐户系统，但我们仍然需要一个前端。我们需要一个表单，供用户注册和登录，以及一个接口，使用户可以更改设置，可以恢复丢失的密码等。
+
+这听起来好像很多，但添加Meteor另一个包被称为帐户accounts-ui。
+
+这个包添加到我们的project中，输入以下命令进入command line： 
+
+meteor add accounts-ui
+
+一旦安装包，打开HTML文件，并在body之间添加的下列标签： 
+
+{{> loginButtons}} 
+
+在这里，我们包括了“loginButtons”template。但是这个template是从哪里来的？这是我们添加到project中的accounts-ui package。 
+
+切换到浏览器，请注意，我们现在有一个“登录”按钮，并且点击时，会出来一个“创建帐户”链接。 
+
+这不只是一个虚拟接口。它连接到我们先前添加的accounts-password package，这意味着我们的帐户系统是功能齐全的。
+
+用户可以： 
+
+•注册。 
+•登录。 
+•注销。 
+•更改其设置。 
+•找回丢失的密码。
+
+为了验证这一点，请单击“创建帐户”链接并注册的电子邮件地址和密码。你不需确认您的电子邮件地址，但可以很容易启用此选项。 
+
+注册后，会注意到一个document已经添加到Meteor.users的collection。您可以通过输入以下命令进入JavaScript控制台看到： 
+
+Meteor.users.find().fetch(); 
+
+或使用COUNT函数，看看它不再返回0。
+
+Meteor.users.find().count();
+￼ 
+如果你是唯一的注册用户，这个语句将返回1。  
+
+
+10.4检查已登录状态，第1部分 
+
+在JavaScript控制台，输入以下语句：
+
+Meteor.user（）; 
+
+此函数由accounts-password package提供给我们，让我们能够获取当前登录用户的MongoDB的document。因此，如果你目前登录了，它应该返回与您的特定帐户相关联的数据。如果你没有登录，此函数将返回NULL。 
+
+此功能用于创建条件语句来测试当前用户是否登录很有用，如下：
+
+if(Meteor.user()){ 
+   console.log("You're logged in!");
+} else {
+   console.log("You're not logged in.");
+}
+
+如果用户登录，首先的条件将返回true。如果没有登录的用户，那么 else条件触发。 
+但是，我们现在需要用这个Meteor.user（）函数吗？ 
+
+不，不是现在。它在leaderboard的应用程序中不会起什么作用。它不久的未来将在Meteor应用中发挥作用，因为这个原因，这是值得一提的。 
+
+10.5检查已登录状态，第2部分 
+
+我们不需要用JavaScript文件检查用户是否已登录，但我们需要检查是否该用户是从我们的template内登录。
+
+为什么呢？ 
+
+因为，如果我们不这样做，甚至注销用户都能看到“添加球员”的形式。如果用户没有登录，我们可以禁用这个表单的功能，如果我们这样做，那表单就不会出现，这很简单。
+
+要做到这一点，写了下面的条件里面我们的“addPlayerForm”template： 
+
+{{#if currentUser}} 
+   <p>You're logged in.</p>
+{{/if}}
+
+在这里，有两件事情正在进行。 
+
+首先，我们使用Spacebars语法创建if语句本身。由于在模块中，在if关键字之前我们使用＃符号。 
+
+第二，我们指的是这个currentUser对象，而这仅仅是象参照Meteor.user（）函数，只是它被设计为在我们的template使用。如果用在有条件的或真实的 - - 所以，如果当前用户登录，currentUser将返回当前用户的详细信息，如果当前没有登录，currentUser将返回null。
+
+最终的结果是，登录以后，用户才会收到这一消息：“你已经登录”。 
+
+在我们的应用程序中使用的话，在“addPlayerForm”template用currentUser条件： 
+
+{{#if currentUser}}
+   <form>
+     <input type="text" id="playerName" /> 
+     <input type="submit" value="Add Player" />
+   </form>
+{{/if}}
+其结果是，该表格将不再出现在注销用户界面上。 
+
+10.6 每个用户都有一个自己的leaderboard 
+
+让我们的应用程序让每一位用户拥有自己的独一无二的leaderboard是很关键的一点。这需要几个步骤。
+
+
+'submit form': function(event, template) { 
+     event.preventDefault();
+     var playerName = template.find('#playerName').value; 
+     PlayersList.insert({
+        name: playerName,
+        score: 0 
+     });
+}
+
+下面我们设置playerName变量的声明，创建一个类似的另一个变量如下：
+
+var  currentUserId= Meteor.userId（）; 
+
+在这里，我们使用的是我以前没有提到的函数 - Meteor.userId（） - 这个函数返回当前登录用户的ID。 （我们并没有必要将其存储在变量中，这只是我个人的偏好。）
+
+接着，在这个event中给insert函数添加field，并且field的值设置为当前登录用户的ID： 
+
+PlayersList.insert({
+    name: playerName,
+    score: 0,
+    createdBy: currentUserId
+});
+（不要忘了score field的值后面的逗号。） 
+
+在这里，我们已经添加了这个createdBy field，因为我们既然在这个field安装了登录用户的ID，这意味着，现在加入到collection的每个球员将与注册用户相关联。
+
+从中可以看到： 
+
+1，给collection添加一个球员。 
+2，在JavaScript控制台使用find和fetch函数。 
+3，点击最新document的向下箭头。 
+
+第一步已经完成。
+
+因为，第二步找到连接到“leaderboard”template“的球员”的helper。看起来应该像下面这样： 
+
+Template.leaderboard.player = function(){
+    return PlayersList.find({}, {sort: {score: -1, name: 1}});
+}
+
+然后，return语句上面，创建另一个currentUserId变量：
+
+var currentUserId = Meteor.userId();
+
+我们再次获取当前登录的用户的ID。 
+
+我们现在要改变return语句，因此只检索从“Player - sList”collection里的球员，其中createdBy field的值等于当前登录用户的ID。 
+
+以下是我们如何做到这一点： 
+
+Template.leaderboard.player = function(){ 
+    var currentUserId = Meteor.userId(); return PlayersList.find(
+        {createdBy: currentUserId},
+        {sort: {score: -1, name: 1}}
+        );
+}
+
+在这里，我们在第一组花括号之间增加了createdBy：currentUserId部分。正如我们在前面的章节提到的，这使我们能够有选择地检索数据，而不是collection中的全部数据。在这种情况下，我们只从“PlayersList”collection中检索document，其中createdBy字段等于当前登录的用户的ID。 
+
+这些步骤完成后，用户将只能看到他们自己创造的球员。 
+
+
+10.7 project重置 
+
+有个小问题是，我们在collection中球员没有连接到用户。这些都是那些createdBy field设置前被添加到collection的球员。为了避免这种情况：
+
+1，停止本地服务器。您可以通过切换到command line，然后按CTRL + C键。 
+2，在command line输入以下命令： 
+
+Meteor reset
+
+此命令把数据库清空，给我们一个新的开始，并确保每一个球员都连接到用户。但你要进行第二次注册，因为您的帐户也同时被删除。 
+
+10.8 其他登录方法
+
+此前，我们谈到accounts-password package。这是给我们提供了一个完整的后端为帐户系统，允许用户注册和使用电子邮件地址和密码登录。这是不是提供给我们的唯一登录方法。 
+
+如果输入这些的话，下面的package也可以：
+
+• accounts-facebook 
+• accounts-github
+• accounts-google
+• accounts-twitter
+• accounts-weibo
+
+这些额外的package使其能够轻松地增加功能，如“用Twitter登录”和“用Facebook登录”我们的应用程序。我不会在书中详细解释，但是我提到它是因为：
+
+1，这件事情你可以自己娱乐。 
+2，这很酷。 
+
+因为当有涉及一些额外的步骤时，其它的package会以相同的方式像accounts-password package一样实现其功能。这意味着用户数据仍然存储在Meteor.user的collection中以及我们之前提到的其他类似Meteor.user（）和的currentUser提到的，不用我们改变任何事的对象。 
+
+要使用这些软件包，只需将它们添加到您的project：
+
+meteor add accounts-twitter
+
+然后添加accounts-ui package包，如果它尚未安装：
+
+meteor add accounts-ui
+
+包含HTML文件中的{{> loginButtons}}标签后，你将被示以进一步的说明，用于连接您的应用程序和这些第三方服务。 
+
+另外值得一提的是，你可以添加多个登录提供包到一个单一的应用程序。这意味着你可以让用户选择他们想要注册的方式。如果要使用多个登录提供程序包，只需添加它们，你通常会用Meteor add命令。
