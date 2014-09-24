@@ -1,0 +1,168 @@
+13 结构 
+
+考虑到我们做leaderboard应用的时候已经取得了很大进展，这是奇怪的是，我们还没有谈到构建软件的一个看似基本方面：结构。同时学习如何最好地组织你的代码和项目文件是很重要的，我认为目前并不好立即讨论它。你知道如何建立结构之前怎么能真正了解应用程序的结构呢？ （答案：不能。） 
+
+我宁愿教你迅速做东西（和乱七八糟），然后谈谈如何把它清理干净。这样，你读到的结构，一切都会没有太多的阻力深入下去。 
+
+在这一章中，我将分享如何快速构建Meteor应用。但我不会提供任何硬性规定，因为： 
+
+1，Meteor本身并没有任何硬性规定。有一些约定，我会解释，但没有严格的，你必须做的规定。 
+2，人们仍然找出了实践Meteor的最佳方法。因此，当有这么多东西要学的时候未免过于愚蠢和教条。 
+
+您也可以对本章的未来的变化有着巨大的期望，以更有效地构建Meteor应用。 
+
+
+13.1 你的项目，你的选择 
+
+Meteor不执行严格的文件结构。这是完全正常的，比如，我们的项目包括刚才这三个文件： 
+
+•leaderboard.html
+•leaderboard.js 
+•leaderboard.css 
+
+我们可以写一个更大的应用程序，仍然从刚才这三个文件中运作。该代码最终会变的管理来极其痛苦，但它可以这样做。
+
+采取这种灵活性的优势，我建议你保持你的项目尽可能简单，因为你熟悉了Meteor。只有三个文件坚持在一个项目中，直到它变得不便。然后让结构超越以前自然进化。这没有必要在专业的环境中，或与客户合作的时候完成 - 这将需要备份的跟踪 - 但如果你觉得把project放到一起是为自己的娱乐和教育，结构是不是最紧迫的问题。 
+
+
+13.2薄文件，厚文件 
+
+在其目前的form中，我们的项目文件都比较厚。这意味着把大量的代码放到一个狭小的空间。这并不总是一件坏事 - 在某些情况下，厚文件将更加易于管理 - 但很多时候，把它分成多个文件会变得更容易管理。 
+
+举个例子，让我们考虑leaderboard.html文件。它并不厚，但它确实有不少template，我们可能要分裂成其他文件：
+
+•leaderboard 
+•addPlayerForm 
+
+为了转型，启动创建project目录中一些新的HTML文件。这些文件的名字，我会选择： 
+
+•leaderboardList.html
+•addPlayerForm.html 
+
+需要明确的是，虽然，文件名可以是任何你想的那样。不必把文件名都基于template的名称。文件名可以是完整的废话，如果你想他们是你从来没有直接引用的文件名。（但更清晰的文件名会更容易地浏览您的project。） 
+
+接下来，复制template的代码粘贴到相应的HTML文件。因此，这将是leaderboardList.html文件的全部内容： 
+
+<template name="leaderboard"> 
+<ul>
+   {{#each player}}
+      <li class="player {{selectedClass}}">{{name}}: {{score}}</li>
+   {{/each}}
+   <li>
+      <input type="button" id="increment" value="Give 5 Points" /> 
+      <input type="button" id="decrement" value="Take 5 Points" /> 
+      <input type="button" id="remove" value="Remove Player" />
+   </li>
+   <li>
+   {{#if showSelectedPlayer}}
+        Selected Player: {{showSelectedPlayer.name}}
+   {{/if}}
+   </li> 
+</ul>
+</template>
+
+......和这将是addPlayerForm.html文件的全部内容：
+
+<template name="addPlayerForm"> 
+{{#if currentUser}}
+    <form>
+        <input type="text" id="playerName" /> 
+        <input type="submit" value="Add Player" />
+    </form>
+{{/if}}
+</template>
+
+然后，您可以自由地从leaderboard.html文件中删除原始模板代码，这意味着leaderboard.html文件现在将类似于： 
+
+<head> 
+    <title>Leaderboard</title>
+</head>
+<body>
+    {{> loginButtons}} 
+    <h1>Leaderboard</h1> 
+    {{> leaderboard}} 
+    {{> addPlayerForm}}
+</body>
+
+但是，我们引用的template这些标签怎么办？难道我们没有做一些特别的手段，以确保Meteor能认出来这些标签其实是参考现在我们已经提出的template？
+
+不。
+
+只要你的template是在你的project文件夹中的某个地方，Meteor可以找出他们在哪里。这同样适用于你的project中的所有代码。你不必精确担心它在哪里（除了少数几个约定，我将在稍后解释）。为了简化JavaScript文件，例如，我们可以创建这些文件： 
+
+•helpers.js
+•events.js 
+•methods.js 
+
+拆解我们的helper，event和methods让我们的代码更易于管理。再一次，文件名是无关紧要的，但让我们来谈谈几个需要牢记的公约。 
+
+13.3 isClient 
+
+里面我们leaderboard.js文件中，有很多的代码在isClient条件内，如果我们开始分裂我们的代码在多个文件中，将他们放到多个isClient条件句中不是最好的方式。 
+为了避免这种可怕的方法，Meteor提供了一个简单的约定：放置在一个命名为客户端的文件夹只能运行在客户端上的代码。 
+
+为了说明这一点： 
+
+1，打开leaderboard.js文件。 
+2，剪切isClient条件之间所有代码。 
+3，将这段代码粘贴到一个新文件（没有条件语句）。 4，将此文件保存到一个命名为client文件夹。
+
+你应该有一个看起来有点像这样一个项目： （见原文图）
+
+基于这种变化，没有什么和我们之前端应用程序完全不同，但它是一个分裂应用程序到模块化的起点。
+
+例如，我们可以将一个文件分成几个不同的文件： 
+
+•helpers.js 
+•events.js 
+
+如果这些文件都是在客户端文件夹中，那么我们两个（或之一）文件就都不用再使用isClient有条件。 
+
+但另一种方法是为每个project中都template文件创建JavaScript文件： 
+
+•leaderboardList.js
+•addPlayerForm.js 
+
+那么我们就可以在leaderboardList.js中拥有所有的和“leaderboard”template文件相关的event和helper文件，及addPlayerForm.js有所有与“addPlayerForm”template相关的event和helper文件。 
+
+这是处理事情的最好方法么？ 
+
+同样，我不希望提供一个明确的答案，因为这将取决于你建立什么，还取决于你建立多大的project。暂时来说，重要的是以下两点： 
+
+1，您可以通过这些方式分割你的文件。 
+2，您可以避免isClient条件句的冗余。
+
+你要想掌握这方面的知识，必然需要做一些实验。 
+
+13.4 isServer
+
+类似于我们刚才讨论的惯例，放置在一个文件夹命名为服务器内的任何代码将只能运行在服务器上。同样的规则也适用服务器，所以我不会重复太多。只要按照从之前相同的步骤： 
+
+1，打开leaderboard.js文件。 
+2，剪切isServer条件之间的所有代码。 
+3，将这段代码粘贴到一个新文件（没有条件语句）。 4，将此文件保存到一个文件夹命名为server。
+
+然后，您将有一个看起来有点像这样一个项目： （见原文图）
+
+该应用程序将继续进行正常操作，但不会有需要的地方isServer条件语句中的服务器端代码。 
+￼ 
+
+13.5其他公约 
+
+在这一点上，默认leaderboard.js文件应该只拥有它里面下面一行代码：
+
+PlayersList = new Meteor.Collection('posts');
+
+这行代码可以保持原位，但它是值得一提的是：
+
+1，你不应该把这段代码放到客户端或服务器文件夹内，因为我们需要这个collection，同时在客户端和服务器上运行。 
+2，是很常见的Meteor开发人员创建一个“collection”文件夹，并为每一个自己的collection创建一个单独的文件。这虽然不是一个正式的公约，并没有特殊的含义。 
+
+也有其他构建Meteor应用到公约，但由于这些公约都与我们的leaderboard的应用程序没有关系，我不会深入到细节。 
+
+如果你对结构特别好奇： 
+
+•阅读官方文件的“构建您的应用程序”一节。 
+•看看这三种资源的进一步的意见和见解。 （此处原文链接为https://github.com/Differential/docs/blob/master/METEOR-STANDARDS.md）
+
+我会在以后的更新中更详细地讨论结构，但leaderboard是一个简单的应用程序，再把文件分得更细就没有必要了。我还会继续指出，这不是最迫切的事情，你的时间应当花在整理几个凌乱的project上实践中而不是担心哪些是最好的实践方法。
