@@ -1,0 +1,341 @@
+12 Methods
+
+默认情况下，每一个Meteor project有两个主要的安全问题： 
+
+•第一个问题就是我们盖在前面的章节 - 任何用户访问数据库中的所有数据的能力。 
+•第二个问题是，用户仍然能够insert，修改，并从数据库中删除数据的限制非常少。 
+
+我们将学习本章来解决第二个问题。 
+
+
+12.1 不安全性
+
+在JavaScript控制台，输入以下命令： 
+
+PlayersList.insert({name: 'Cheater', score: 1000});
+
+看到问题了吗？
+
+如果我们当前状态下就把应用程序部署到Web上，则任何人都可以打开JavaScript控制台和自由insert任何数据，以及进入他们希望进入的“PlayersList”collection。他们也可以修改和删除数据。
+
+同样，这个功能是方便开发人员 - 我们整本书都在受益于这种直接操作数据库的方法 － 我们一直在用。 
+
+因为是用autopublish package的情况下，该功能被包含在称为insecure package的包内。 
+
+要删除insecure package，请输入以下命令进入command line（不是JavaScript控制台）：
+
+meteor remove insecure
+
+删除此包后，我们的帐户系统仍然可以工作，但是我们的应用程序的其余部分将被彻底打破： 
+
+1，我们不能增加任何列表的球员。 
+2，我们不能删除名单中的球员。 
+3，我们不能修改球员的分数。 
+
+你会继续从数据库中看到目前所有的数据 - 这是仍然发布和订阅处理 - 但我们没有办法改变或操纵这些数据。然而这是一个好事。 
+ 
+到目前为止，insert,update和remove函数都能在客户端运行。他们都是isClient内条件。不过，虽然这很方便，但只要用户能够从客户端修改数据，我们的数据库将很危险，因为我们永远不能信任用户。我们必须假设，在客户机上的任何代码有不必要的操作风险。 
+
+另一种方法 - 是否去除insecure package的权利在我们手上 - 是将所有的insert，update和remove功能放到服务器。这是因为在服务器上的任何代码本质上是可信的。我们运行服务器时，毕竟我们在控制。这使得我们的代码来运行更加安全，因为用户不能直接访问。 
+
+接下来，我们的目标是将来自isClient数据库操作条件转移到isServer条件。 
+
+这就要求我们建立我们的第一个method。 
+
+12.2创建method 
+
+在JavaScript文件，里面写的isServer条件如下： 
+
+Meteor.methods({
+    // methods go here
+});
+
+在此模块中，我们可以定义我们想在服务器上运行的代码，但是，仍然可以从客户端被触发。
+
+为了演示如何工作的，让我们用提交的“添加球员”的形式触发服务器上的console.log语句来实现。
+
+首先，选择适合method的名称： 
+
+Meteor.methods（{
+    “executeLogStatement”
+}）; 
+
+您可以以任何你喜欢的方式命名，但我通常喜欢使用更长的名字，因为是描述将使代码更易读。 
+
+接下来，我们将该名字连接到一个函数： 
+
+Meteor.methods({ 'executeLogStatement': function(){
+        console.log("You submitted the form");
+    }
+});
+
+（注意，这是因为和events模块有类似的语法，所以我们没有做任何过于激进的事情。） 
+
+在这一点上，我们可以从我们的代码别处调用此method。“添加球员”的form提交时触发，把这个调用放到submit form event里,就像这样： 
+
+'submit form': function(theEvent, theTemplate){ 
+    theEvent.preventDefault();
+    var playerNameVar = theTemplate.find('#playerName').value; 
+    PlayersList.insert({
+        name: playerNameVar,
+        score:0 
+    });
+    Meteor.call('executeLogStatement');
+}
+
+因此，这是我们增加的唯一代码： 
+
+Meteor.call（'executeLogStatement'）; 
+
+我们运行这个call函数，并将我们所限定的method的名称传递到isServer条件里。
+
+现在，只要您提交的表单中，“You submitted the form” 字符串将出现在command line（不是JavaScript控制台）中。这应该可以说明我们如何在客户端触发，而服务器上执行代码。 
+
+
+12.3 输入数据 
+
+在这一点上，是时候把insert函数从submit event form 移到method的isServer条件里。 
+
+首先，改变目前的method的名称：
+
+Meteor.methods({ 
+    'insertPlayerData': function(){
+        console.log("You submitted the form");
+    }
+});
+
+然后在method添加一个简单的insert函数： 
+
+Meteor.methods({ 
+   'insertPlayerData': function(){
+        var currentUserId = Meteor.userId(); PlayersList.insert({
+            name: 'David',
+            score: 0,
+            createdBy: currentUserId
+        }); 
+    }
+});
+
+在这里，我们还创造了另一个currentUserId变量，该代码完全按预期获取当前用户的ID。 
+
+你会发现，我们的insert函数使用“David”的球员的名字值，但这不是我们确切想要的，我们会一会儿解决这个问题。
+
+现在，请从submit form里删除insert函数，改变调用call函数的名字。 
+
+event中的代码，应类似于： 
+
+'submit form': function(theEvent, theTemplate){ 
+    theEvent.preventDefault();
+    var playerNameVar = theTemplate.find('#playerName').value; 
+    Meteor.call('insertPlayerData');
+}
+
+如果你登录帐户，然后尝试在leaderboard中增加一个球员，你会发现它其作用了。在当前的代码中，球员的名字将永远是“David”无论你输入什么，但仍然在朝着正确的方向迈出一步。 
+
+在我们继续之前，还有要注意的三个重要问题： 
+
+•用户无法通过JavaScript工作台输入，更新，或删除数据，因此我们的应用仍然安全。 
+•当表单被提交时，insertPlayerData method 被调用并执行该method中的代码。 
+•由于method在服务器执行，insert函数可以从服务器上顺利执行，因为该代码本质上是值得信赖的。 
+
+我们的确需要允许用户再次选择他们要输入到数据库中球员的名字。 
+
+12.4参数传递 
+
+我们可以将参数传递到method调用，使他们更有用。例如，改变Meteor.call功能如下：
+
+Meteor.call('insertPlayerData', playerNameVar);
+
+在这里，我们给method call设置了playerNameVar变量（其中包含文本字段中的值）。这意味着，如果我们允许我们的method来访问数据，我们现在可以从我们的method中访问这些数据。 
+
+要做到这一点，改变insertPlayerData method如下：
+
+'insertPlayerData': function(playerNameVar){ 
+    var currentUserId = Meteor.userId(); PlayersList.insert({
+        name: 'David',
+        score: 0,
+        createdBy: currentUserId
+    }); 
+}
+
+在这里，我们已经在函数的括号内的添加了playerNameVar参数。然后，我们可以参考这个参数的函数中，如下所示： 
+
+'insertPlayerData': function(playerNameVar){ 
+    var currentUserId = Meteor.userId(); PlayersList.insert({
+        name: playerNameVar,
+        score: 0,
+        createdBy: currentUserId
+    }); 
+}
+
+在这里，我们把“David”换成playerNameVar变量。这是基本流程：
+
+1，当表单被提交时，insertPlayerData method被调用，并从文本字段中的值连接到这个call。 
+2，method被执行，且接受playerNameVar作为其第一个也是唯一一个参数。 
+3，在method中，insert函数被执行时，使用储存在playerNameVar的值作为name field的值。 
+
+最终的结果是，我们的“添加球员”的form如预期般工作。用户向文本字段键入一个名称，提交表单，这个名字将被添加到用户的leaderboard中。唯一的区别是，insert函数在服务器中受信任的环境中执行，而用户仍然无法从JavaScript控制台使用输入，更新或删除函数。这样一来，我们的应用安全性大大提高。
+
+这只是一种method。我们还需要将一些代码从isClient条件移动到isServer条件下，再发挥作用。 
+
+12.5 删除球员 
+
+在我们之前创建的同一个method模块中，创建一个新的method来处理从collection中删除球员到命令：
+
+'removePlayer': function(){ 
+    // code goes here
+}
+
+请确保该块中的method是用逗号分开，这意味着整个模块应类似于以下内容： 
+
+Meteor.methods({
+ 'insertPlayerData': function(playerNameVar){
+    var currentUserId = Meteor.userId(); PlayersList.insert({
+            name: playerNameVar,
+            score: 0,
+            createdBy: currentUserId
+    }); 
+  },
+  'removePlayer': function(){ 
+      // code goes here
+    } 
+});
+
+
+isClient条件里面，改变click#remove event，从这样：
+
+'click #remove': function(){
+    var selectedPlayer = Session.get('selectedPlayer'); 
+    PlayersList.remove(selectedPlayer);
+}
+
+
+成这样：
+
+'click #remove': function(){
+    var selectedPlayer = Session.get('selectedPlayer'); 
+    Meteor.call('removePlayer');
+}
+
+因此，当用户点击“删除球员”按钮，removePlayer method现在执行。我们需要确保所选择的球员的ID已经传递，所以把selectedPlayer变量连接到call函数： 
+
+'click #remove': function(){
+    var selectedPlayer = Session.get('selectedPlayer'); 
+    Meteor.call('removePlayer', selectedPlayer);
+}
+
+然后，我们可以改变removePlayer法接受这个参数： 
+
+'removePlayer': function(selectedPlayer){ 
+    // code goesh ere
+}
+
+......并用它来从collection中删除所选择的球员： 
+
+'removePlayer': function(selectedPlayer){ 
+     PlayersList.remove(selectedPlayer);
+}
+
+
+12.6 修改得分 
+我没有叫这个节“递增成绩”或“递减分数”，因为我们要做一些特别的东西合并的click#increment和click#decrement event。这意味着，method不仅将我们的代码更加安全，还将让我们管理更少的代码。 
+
+作为参考，这就是click#increment event是这样的：
+
+'click #increment': function(){
+    var selectedPlayer = Session.get('selectedPlayer'); PlayersList.update(
+        {_id: selectedPlayer},
+        {$inc: {score: 5}}
+    );
+}
+
+这个event和click#decrement事件之间的唯一区别是，虽然click#decrement事件具有得分字段的设置为-5，而不是5这是一个微小的差异和很多重复的代码。 
+
+要继续修复我们的应用程序的功能，在相同模块内创建另一个method： 
+
+'modifyPlayerScore': function(){ 
+   // code goes here
+}
+
+然后从click#increment event中剪切粘贴update函数到新的method： 
+
+'modifyPlayerScore': function(){ PlayersList.update(
+        {_id: selectedPlayer},
+        {$inc: {score: 5}}
+    );
+}
+
+从那里，添加call函数到click#increment event：
+
+'click #increment': function(){
+    var selectedPlayer = Session.get('selectedPlayer'); 
+    Meteor.call('modifyPlayerScore');
+}
+
+正如我们在上一节一样，我们需要通过我们的call 函数来传递selectedPlayer变量： 
+
+'click #increment': function(){
+     var selectedPlayer = Session.get('selectedPlayer'); Meteor.call('modifyPlayerScore', selectedPlayer);
+}
+...确定method接受了这个参数：
+
+'modifyPlayerScore': function(selectedPlayer){ PlayersList.update(
+        {_id: selectedPlayer},
+        {$inc: {score: 5}}
+    );
+}
+
+在其目前的form，这modifyPlayerScore被调用时将成功增加一名球员的得分，但让我们做一个简单的变化，它被调用让其可以递增和递减的分数。 
+
+要做到这一点，让我们通过调用函数的第二个参数： 
+
+'click #increment': function(){
+    var selectedPlayer = Session.get('selectedPlayer');
+    Meteor.call('modifyPlayerScore', selectedPlayer, 5);
+}
+
+然后让我们的method来接受这样个参数：
+
+'modifyPlayerScore': function(selectedPlayer, scoreValue){ 
+    PlayersList.update(
+        {_id: selectedPlayer},
+        {$inc: {score: 5}}
+    );
+}
+
+在这里，我们已经创造了这个新的scoreValue参数，我们现在可以在method中调用了。因此，如果我们做最后的变化：
+
+'modifyPlayerScore': function(selectedPlayer, scoreValue){ 
+    PlayersList.update(
+        {_id: selectedPlayer},
+        {$inc: {score: scoreValue}}
+    );
+}
+
+然后我们两种不同的方式调用modifyPlayerScore函数。如果我们想增加一个球员的得分，我们可以这样写： 
+
+Meteor.call('modifyPlayerScore', selectedPlayer, 5);
+
+但是，如果我们想减小球员的得分，我们可以这样写：
+
+Meteor.call('modifyPlayerScore', selectedPlayer, -5);
+
+我们只是改变了让call函数能够将-5而不是5作为第二个参数传递出去，但是这没有任何额外的代码，完全翻转了该method的效用。非常漂亮，对不对？ 
+
+在这一点上，改变click#decrement event： 
+
+'click #decrement': function(){
+    var selectedPlayer = Session.get('selectedPlayer'); 
+    PlayersList.update(
+        {_id: selectedPlayer},
+        {$inc: {score: -5}}
+    );
+}
+
+成这样： 
+
+'click #decrement': function(){
+    var selectedPlayer = Session.get('selectedPlayer'); 
+    Meteor.call('modifyPlayerScore', selectedPlayer, -5);
+}
+无论是“给5分”和“Take5点”按钮，现在应该按预期方式工作，只是现在所有的服务器的受信任的环境中运行的数据处理代码。
