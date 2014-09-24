@@ -1,0 +1,191 @@
+11 发布和订阅 
+
+这似乎是我们的应用程序基本完成 - 它仍然看起来难看，但它已经有很多功能了 - 但有一些很重要的，我们还没有谈到尚：安全性。
+
+这本书将不会提供一切安全性的东西，但在接下来的章节中，你会得到基本的知识。 
+
+11.1安全地思考 
+
+对于本演示，在你的应用程序中创建两个帐户，并在leaderboard上为每个帐户添加三个球员。 
+
+举例来说，这里有我的两个用户和他们的球员：
+
+            User A       User B
+            Bob          Tim
+            Mary         Warren
+            Bill         David
+
+接下来，注销任一账户，并在JavaScript控制台输入以下语句： 
+PlayersList.find().fetch();
+
+这不是什么新鲜事。我们只是从“PlayersList”collection检索document并将结果转换成一个数组。
+￼
+但是，你可能没有考虑一个问题： 
+
+当应用程序部署到Web，会发生什么？ 
+
+如果普通用户有同样的权限可以打开JavaScript控制台键入命令，会发生什么？也许不是每个用户都有知识，但不是这仍然是一个巨大的安全隐患？用户可以在“PlayersList”collection自由浏览所有的数据，包括： 
+
+•球员的ID。 
+•球员的名字。 
+•球员分数。 
+•createdByfield中的用户ID。 
+
+这是世界上最敏感的数据？也许不是。但是想象一下，如果我们构建分享私人信息的应用程序。如果有人能完全自由地够打开JavaScript控制台并浏览所有的信息，后果将不堪设想。
+
+但无论你建立什么，让用户可以有比他们需要机会多的权限访问更多的数据这并是一个好主意。它既是： 
+
+•安全风险。 
+•绩效危险。 
+
+因为当我们将重点放在安全这等更重要的问题上时，如果用户没有获准进入每一项您的收藏里面的数据时，将大大提高应用程序的性能。 
+
+你可能会奇怪，虽然：为什么我们的Meteor应用在默认情况下有如此巨大的安全风险？但答案很简单：
+
+方便。 
+
+因为此安全风险，我们能够很容易地通过全部通过JavaScript控制台对我们的数据库中的数据进行浏览。我们使用的find和fetch函数在很多场合而这些都非常有用，因为我们没有数据访问的限制。 
+
+这只是我们的应用程序公开之前，我们必须确保我们准确地定义哪些数据是提供给每一位用户。用户能够访问他们所需要的数据，但仅此而已。 
+
+为了实现这一目标，我们将讨论的发布和订阅。他们对一些初学者来说是比较抽象的概念，但对于这个原因，我们将详尽并缓慢地（并保持充足的现实）解释它。 
+
+11.2自动发布 
+
+默认情况下，此安全风险是包含在每一个Meteor project package内。这个包，被称为autopublish包，允许通过JavaScript控制台访问在我们的数据库中所有的数据。如果我们去掉这个包，我们的应用程序将变得更安全，但： 
+
+1，所有在“PlayersList”collection的数据将变得不可访问。 
+2，我们必须精确地定义哪些数据应该是可访问的。 
+（您可能想知道会与Meteor.users collection发生什么，但先把这个想法放一放。）
+
+若要删除自动发布包，输入以下命令进入命令行： 
+
+meteor remove autopublish 
+
+如果你登出了，你可能不会注意到立即改变，但是如果你在JavaScript控制台使用find和fetch函数，它会看起来好像我们已经删除了所有“PlayersList”collection的数据：
+
+PlayersList.find().fetch();
+
+您也可以登录到一个帐户，并查看该leaderboard也为空，使它看起来好像我们已经删除了所有的数据。 
+
+但是，不要害怕。我们的数据依然存在。我们只需要在数据能提供给客户（用户的浏览器）时采取一些额外的步骤。就是这些额外步骤，为我们提供了在安全方面更多的控制。 
+
+11.3 isServer 
+
+到目前为止，几乎所有的代码已被写入内部的isClient条件。这是因为我们一直在创造helper和event，这些事情都发生在用户的浏览器中显示。现在是时候接触isServer条件。 
+
+如果isServer条件没在JavaScript文件中，写入以下内容：
+
+if(Meteor.isServer){ 
+   // code goes here
+}
+
+此块中的任何代码都在服务器中执行，这意味着两个重要的事情：
+
+1，我们在这里写的代码不会（直接）影响的用户界面。 2，我们在这里写的代码在内部是被信任的。 
+
+这第二点是目前很重要的一点，因为即使我们已经删除了autopublish package，我们仍然可以自由地获取任何数据，只要我们要检索的数据在服务器上。 
+
+例如，写入内部isServer条件如下：
+
+console.log(PlayersList.find().fetch());
+
+这不会是最有用的代码，但是，如果你保存文件，并检查command line（不是JavaScript控制台），你会发现我们的数据被毫不费力地检索到。 
+
+11.4出版物 
+
+我们现在要做的是从内部发布“PlayersList”collection。你可以认为这是从服务器传输数据。基本上是说，“这是我们要提供给用户的数据......”但是，我们不会再特别指出其他的了。 
+
+isServer内的条件，写入以下内容：
+
+Meteor.publish（'thePlayers'）; 
+
+在这里，我们发起publish函数，并通过名字传递的第一个参数。此名称只作为参考。 
+
+接下来，通过传递函数的第二个参数：
+
+Meteor.publish('thePlayers', function(){ 
+    // this is where we retrieve the data
+});
+
+在这个函数中，指定希望提供给用户的数据。目前，让我们从collection返回所有数据：
+
+Meteor.publish('thePlayers', function(){ 
+     return PlayersList.find();
+});
+
+需要明确的是，这个功能将使所有在collection中的数据提供给用户，这意味着它会重复autopublish package的功能数据。归根结底，这是不是我们想要的，但它会暂时存在。 
+
+
+11.5订阅 
+
+现在，从“PlayersList”collection的数据从服务器传输到ether，我们需要一种能从客户端内抓住该数据的方式。这个过程被称为订阅。 
+
+在isClient条件里，写入以下内容：
+
+Meteor.subscribe（'thePlayers'）; 
+
+在这里，我们发起subscribe函数，把在publish函数中定义的名字作为第一个（也是唯一的）参数。 
+
+保存文件，切换到浏览器，并注意find和fetch函数，可以再度使用JavaScript控制台：
+
+PlayersList.find().fetch(); 
+
+如果你重新登录任一用户帐户还可以看到，我们的leaderboard就能工作了。但就像我说的，我们用publish函数将所有的数据传送到客户端，所以我们的应用程序是不安全的。它只是准备进入安全模式。 
+
+
+11.6 精确发布
+在isServer条件里，这是我们publish函数的写法： 
+
+Meteor.publish('thePlayers', function(){ 
+    return PlayersList.find();
+});
+
+不xiangpublish函数能检索所有从“PlayersList”function中的数据，我们希望一个只检索属于当前登录用户数据的函数。 
+
+这将有两个显着的效果： 
+
+1，已登录的用户将只能访问他们的数据。 2，已注销的用户将无法访问任何数据。 
+
+要进行此更改，在return语句上创建publish 函数中的currentUserId变量： 
+
+var currentUserId = this.userId; 
+
+在一个publish函数中，我们无法用我们前面使用的Meteor.userId（）函数。但是我们可以参阅publish 函数中的this.userId并达到同样的效果。 
+
+我们参考this.userId将： 
+
+1，返回的登录用户的唯一ID。
+2，如果用户没有登录则返回NULL。 
+
+虽然该变量是没有必要的，但它使代码更易读。 
+
+其次，改变return语句如下： 
+
+return PlayersList.find({ createdBy: currentUserId });
+
+最终的publish函数应该类似于： 
+
+Meteor.publish('thePlayers', function(){
+   var currentUserId = this.userId;
+   return PlayersList.find({ createdBy: currentUserId });
+});
+
+保存文件后，该应用程序将更加安全。 
+
+为了证明这一点，转用谷歌Chrome浏览器，打开JavaScript控制台，然后输入以下语句： 
+
+PlayersList.find().fetch();
+
+因为没有从“PlayersList”collection的数据被发送到客户端这条语句将返回一个空数组。为什么呢？因为在我们的publish 函数的return语句只返回数据，因为其中createdBy的值等于当前的用户的ID。如果当前用户未登录，他们没有ID，因此不返回任何值。这意味着访客没有办法通过我们数据库中的任何数据。
+
+接下来，登录到任一帐户。你会看到，“属于”该用户的球员在leaderboard中出现。你甚至可以看到这些球员的数据重复在JavaScript Console中出现： 
+
+PlayersList.find().fetch();
+
+但JavaScript控制台只能返回属于登录用户的数据。这意味着：
+
+1，用户永远只能访问自己的数据。 
+2，数据只能在被需要传递时才能传递。
+
+下一章将介绍安全的另一个重要方面，但我们在这里有了良好的进展，所以拍拍自己的背，也许休息一会，再继续。你（和你的大脑）应该稍微休息一下。
